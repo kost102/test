@@ -4,7 +4,8 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.config['JSON_AS_ASCII'] = False  # Для русского текста
+app.config['JSON_AS_ASCII'] = False  # Отключаем экранирование Unicode
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True  # Для красивых отступов
 
 # Инициализация БД
 def init_db():
@@ -22,7 +23,6 @@ def init_db():
 
 init_db()
 
-# Токен для Discord бота
 BOT_TOKEN = os.environ.get('BOT_TOKEN', 'secret_token_123')
 
 @app.route('/', methods=['GET'])
@@ -45,7 +45,6 @@ def discord_webhook():
 
     data = request.json
     
-    # Валидация
     if not data or 'type' not in data or 'message' not in data:
         return jsonify({"error": "Missing required fields"}), 400
     
@@ -53,7 +52,6 @@ def discord_webhook():
         conn = sqlite3.connect('commands.db')
         c = conn.cursor()
         
-        # ИСПРАВЛЕНО: теперь 3 знака вопроса для 3 колонок
         c.execute(
             "INSERT INTO commands (type, message, created_at) VALUES (?, ?, ?)",
             (data['type'], data['message'], datetime.now())
@@ -77,16 +75,14 @@ def get_commands():
         conn = sqlite3.connect('commands.db')
         c = conn.cursor()
         
-        # Получаем все невыполненные команды
         c.execute("SELECT id, type, message FROM commands WHERE executed = 0")
         commands = c.fetchall()
         
-        # Отмечаем их как выполненные
         c.execute("UPDATE commands SET executed = 1 WHERE executed = 0")
         conn.commit()
         conn.close()
         
-        # Форматируем ответ
+        # Форматируем ответ - теперь Unicode НЕ будет экранирован
         result = {
             "commands": [
                 {
@@ -98,7 +94,11 @@ def get_commands():
         }
         
         print(f"📤 Отправлено команд DayZ: {len(commands)}")
-        return jsonify(result)
+        
+        # Принудительно возвращаем без экранирования
+        response = jsonify(result)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response
         
     except Exception as e:
         print(f"❌ Error getting commands: {e}")
@@ -106,7 +106,6 @@ def get_commands():
 
 @app.route('/dayz/status', methods=['GET'])
 def status():
-    """Проверка статуса сервера"""
     try:
         conn = sqlite3.connect('commands.db')
         c = conn.cursor()
