@@ -1,11 +1,14 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 import sqlite3
 from datetime import datetime
 import os
+import json  # Добавляем для работы с JSON
 
 app = Flask(__name__)
-app.config['JSON_AS_ASCII'] = False  # Отключаем экранирование Unicode
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True  # Для красивых отступов
+
+# Отключаем экранирование Unicode
+app.config['JSON_AS_ASCII'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 
 # Инициализация БД
 def init_db():
@@ -82,27 +85,35 @@ def get_commands():
         conn.commit()
         conn.close()
         
-        # Форматируем ответ - теперь Unicode НЕ будет экранирован
+        # Создаем словарь с данными
         result = {
             "commands": [
                 {
                     "id": cmd[0],
                     "type": cmd[1],
-                    "message": cmd[2]
+                    "message": cmd[2]  # message уже в UTF-8 из базы данных
                 } for cmd in commands
             ]
         }
         
         print(f"📤 Отправлено команд DayZ: {len(commands)}")
         
-        # Принудительно возвращаем без экранирования
-        response = jsonify(result)
+        # ВАЖНО: используем make_response с ensure_ascii=False
+        response_data = json.dumps(result, ensure_ascii=False, indent=2)
+        response = make_response(response_data)
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        
+        # Для отладки - показываем, что реально отправляем
+        print(f"📤 Отправляемые данные: {response_data}")
+        
         return response
         
     except Exception as e:
         print(f"❌ Error getting commands: {e}")
-        return jsonify({"error": str(e), "commands": []}), 500
+        error_response = json.dumps({"error": str(e), "commands": []}, ensure_ascii=False)
+        response = make_response(error_response)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response, 500
 
 @app.route('/dayz/status', methods=['GET'])
 def status():
@@ -115,15 +126,23 @@ def status():
         total = c.fetchone()[0]
         conn.close()
         
-        return jsonify({
+        result = {
             "status": "online",
             "pending_commands": pending,
             "total_commands": total,
             "version": "1.0"
-        })
+        }
+        
+        response_data = json.dumps(result, ensure_ascii=False)
+        response = make_response(response_data)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response
         
     except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
+        error_response = json.dumps({"status": "error", "error": str(e)}, ensure_ascii=False)
+        response = make_response(error_response)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response, 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
