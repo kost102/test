@@ -39,20 +39,23 @@ def home():
 
 @app.route('/discord', methods=['POST'])
 def discord_webhook():
-    """Discord бот отправляет команды сюда"""
     auth = request.headers.get('Authorization')
     if auth != f'Bearer {BOT_TOKEN}':
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.json
-    print(f"Получена команда: {data}")
+    
+    # Валидация
+    required_fields = ['type', 'message']
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
     
     try:
         conn = sqlite3.connect('commands.db')
         c = conn.cursor()
         c.execute(
-            "INSERT INTO commands (type, message, player_name, created_at) VALUES (?, ?, ?, ?)",
-            (data.get('type'), data.get('message'), data.get('player'), datetime.now())
+            "INSERT INTO commands (type, message, created_at) VALUES (?, ?, ?, ?)",
+            (data['type'], data['message'], datetime.now())
         )
         conn.commit()
         command_id = c.lastrowid
@@ -61,7 +64,7 @@ def discord_webhook():
         return jsonify({"status": "ok", "id": command_id})
     except Exception as e:
         print(f"Error saving command: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Database error"}), 500
 
 @app.route('/dayz/get_commands', methods=['GET'])
 def get_commands():
@@ -120,4 +123,5 @@ def status():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
