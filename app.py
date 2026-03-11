@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.config['JSON_AS_ASCII'] = False  # Важно для русского текста!
+app.config['JSON_AS_ASCII'] = False  # Для русского текста
 
 # Инициализация БД
 def init_db():
@@ -15,7 +15,7 @@ def init_db():
                   type TEXT,
                   message TEXT,
                   created_at TIMESTAMP,
-                  executed INTEGER DEFAULT 0)''')  # Убрали player_name
+                  executed INTEGER DEFAULT 0)''')
     conn.commit()
     conn.close()
     print("Database initialized")
@@ -52,18 +52,22 @@ def discord_webhook():
     try:
         conn = sqlite3.connect('commands.db')
         c = conn.cursor()
+        
+        # ИСПРАВЛЕНО: теперь 3 знака вопроса для 3 колонок
         c.execute(
             "INSERT INTO commands (type, message, created_at) VALUES (?, ?, ?)",
             (data['type'], data['message'], datetime.now())
         )
+        
         conn.commit()
         command_id = c.lastrowid
         conn.close()
         
-        print(f"Сохранена команда: {data['type']} - {data['message']}")
+        print(f"✅ Сохранена команда: {data['type']} - {data['message']}")
         return jsonify({"status": "ok", "id": command_id})
+        
     except Exception as e:
-        print(f"Error saving command: {e}")
+        print(f"❌ Error saving command: {e}")
         return jsonify({"error": "Database error"}), 500
 
 @app.route('/dayz/get_commands', methods=['GET'])
@@ -82,7 +86,7 @@ def get_commands():
         conn.commit()
         conn.close()
         
-        # Форматируем ответ - БЕЗ PLAYER
+        # Форматируем ответ
         result = {
             "commands": [
                 {
@@ -93,10 +97,11 @@ def get_commands():
             ]
         }
         
-        print(f"Отправлено команд DayZ: {len(commands)}")
+        print(f"📤 Отправлено команд DayZ: {len(commands)}")
         return jsonify(result)
+        
     except Exception as e:
-        print(f"Error getting commands: {e}")
+        print(f"❌ Error getting commands: {e}")
         return jsonify({"error": str(e), "commands": []}), 500
 
 @app.route('/dayz/status', methods=['GET'])
@@ -117,6 +122,7 @@ def status():
             "total_commands": total,
             "version": "1.0"
         })
+        
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
 
