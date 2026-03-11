@@ -85,8 +85,7 @@ def get_commands():
                 {
                     "id": cmd[0],
                     "type": cmd[1],
-                    "message": cmd[2],
-                    "player": cmd[3]
+                    "message": cmd[2]
                 } for cmd in commands
             ]
         }
@@ -121,3 +120,4 @@ def status():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
