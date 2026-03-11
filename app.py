@@ -10,30 +10,32 @@ app = Flask(__name__)
 def init_db():
     conn = sqlite3.connect('commands.db')
     c = conn.cursor()
+    
+    # Создаем таблицу без комментариев в SQL
     c.execute('''CREATE TABLE IF NOT EXISTS commands
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   type TEXT,
                   message TEXT,
-                  steam_id TEXT,      # Новое поле для steam_id
-                  item TEXT,           # Новое поле для предмета
-                  count INTEGER,       # Новое поле для количества
+                  steam_id TEXT,
+                  item TEXT,
+                  count INTEGER DEFAULT 1,
                   created_at TIMESTAMP,
                   executed INTEGER DEFAULT 0)''')
     
     # Проверяем и добавляем новые колонки, если их нет
     try:
         c.execute("SELECT steam_id FROM commands LIMIT 1")
-    except:
+    except sqlite3.OperationalError:
         c.execute("ALTER TABLE commands ADD COLUMN steam_id TEXT")
     
     try:
         c.execute("SELECT item FROM commands LIMIT 1")
-    except:
+    except sqlite3.OperationalError:
         c.execute("ALTER TABLE commands ADD COLUMN item TEXT")
     
     try:
         c.execute("SELECT count FROM commands LIMIT 1")
-    except:
+    except sqlite3.OperationalError:
         c.execute("ALTER TABLE commands ADD COLUMN count INTEGER DEFAULT 1")
     
     conn.commit()
@@ -94,6 +96,10 @@ def discord_webhook():
                 (data['type'], data['steam_id'], data['item'], count, datetime.now())
             )
             print(f"✅ Сохранена give команда: steam_id={data['steam_id']}, item={data['item']}, count={count}")
+        
+        else:
+            # Для неизвестных типов команд
+            return jsonify({"error": f"Unknown command type: {data['type']}"}), 400
         
         conn.commit()
         command_id = c.lastrowid
